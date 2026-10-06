@@ -312,6 +312,7 @@ textarea.field { direction: ltr; text-align: left; font-family: var(--mono); fon
       <div class="btnrow one">
         <button type="button" id="copy" class="btn primary"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg><span data-i="copy"></span></button>
         <button type="button" id="copy64" class="btn" data-i="copy64"></button>
+        <button type="button" id="dlTxt" class="btn" data-i="dlTxt"></button>
       </div>
       <div class="subhead">
         <span data-i="lblJson"></span>
@@ -378,6 +379,7 @@ textarea.field { direction: ltr; text-align: left; font-family: var(--mono); fon
           <option>chrome</option><option>firefox</option><option>safari</option><option>ios</option>
           <option>android</option><option>edge</option><option>360</option><option>qq</option>
           <option>random</option><option>randomized</option><option>unsafe</option>
+          <option value="keep" data-i="fpKeep"></option>
         </select>
       </div>
     </details>
@@ -466,6 +468,24 @@ textarea.field { direction: ltr; text-align: left; font-family: var(--mono); fon
       </div>
     </details>
 
+
+    <details class="acc" id="gParse">
+      <summary><span class="acc-t" data-i="g_parse"></span><span class="acc-v" id="vParse"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
+      <div class="acc-body">
+        <label class="sw">
+          <span class="sw-txt"><span class="sw-t" data-i="passThrough"></span><span class="sw-d" data-i="passThroughD"></span></span>
+          <input type="checkbox" id="passThrough" class="switch" checked>
+        </label>
+        <label class="sw">
+          <span class="sw-txt"><span class="sw-t" data-i="normQuery"></span><span class="sw-d" data-i="normQueryD"></span></span>
+          <input type="checkbox" id="normQuery" class="switch">
+        </label>
+        <label for="nameTpl" class="fl" data-i="lblNameTpl"></label>
+        <input type="text" id="nameTpl" class="field mono" spellcheck="false" autocomplete="off" autocapitalize="off" data-ph="nameTplPh">
+        <p class="hint" data-i="nameTplHint"></p>
+      </div>
+    </details>
+
     <details class="acc" id="gPack">
       <summary><span class="acc-t" data-i="g_pack"></span><span class="acc-v" id="vPack"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></summary>
       <div class="acc-body">
@@ -489,7 +509,7 @@ textarea.field { direction: ltr; text-align: left; font-family: var(--mono); fon
     </details>
   </section>
 
-  <p class="foot">ECH modifier v26</p>
+  <p class="foot">ECH modifier v27</p>
 </main>
 
 <div class="runbar"><div class="runbar-in">
@@ -1418,7 +1438,7 @@ function rawValue(tok) { var i = tok.indexOf("="); return i === -1 ? "" : tok.su
 // returns { texts: [links], state }, state is one of
 // enhanced, converted, notls, noports, noname, noip, othersec, protocol, invalid, incomplete
 function addEch(link, o) {
-  var fp = o.fp || "chrome", ports = o.ports || [], allAddrs = o.addrs || [], addrs = allAddrs;
+  var keepFp = o.fp === "keep", fp = (!o.fp || keepFp) ? "chrome" : o.fp, ports = o.ports || [], allAddrs = o.addrs || [], addrs = allAddrs;
   if (!/^(vless|trojan):\/\//i.test(link)) { return { texts: [], state: "protocol" }; }
 
   var main = link, frag = "";
@@ -1435,7 +1455,7 @@ function addEch(link, o) {
   var tokens = main.substring(qAt + 1).split("&");
   var kept = [], i, tok, k, any = false;
   var fpAt = -1, secAt = -1, encAt = -1, alpnAt = -1, secVals = [], hostVal = "", sniVal = "", typeVal = "";
-  var hasSni = false, hasAlpn = false, hasHost = false;
+  var hasSni = false, hasAlpn = false, hasHost = false, headerVal = "";
   for (i = 0; i < tokens.length; i++) {
     tok = tokens[i];
     if (tok === "") { continue; }
@@ -1443,7 +1463,12 @@ function addEch(link, o) {
     k = keyOf(tok);
     if (k === "ech" || k === "fm" || k === "cs") { continue; }   // every copy removed, the new value is added once below
     if (k === "fp") {
-      if (fpAt === -1) { fpAt = kept.length; kept.push("fp=" + fp); }
+      if (fpAt === -1) {
+        fpAt = kept.length;
+        var ownFp = keepFp ? rawValue(tok) : "";
+        if (ownFp && o.ech && compareValue(tok) === "unsafe") { ownFp = ""; }   // ECH never goes with the unsafe fingerprint
+        kept.push("fp=" + (ownFp || fp));
+      }
       continue;
     }
     if (k === "security") {
@@ -1454,6 +1479,7 @@ function addEch(link, o) {
     if (k === "host") { hasHost = true; if (!hostVal) { hostVal = rawValue(tok); } }
     if (k === "sni") { hasSni = true; if (!sniVal) { sniVal = rawValue(tok); } }
     if (k === "type") { typeVal = compareValue(tok); }
+    if (k === "headertype") { headerVal = compareValue(tok); }
     if (k === "alpn") {
       if (o.alpnAuto) {
         if (alpnAt === -1) { alpnAt = kept.length; kept.push("alpn="); }
@@ -1491,6 +1517,7 @@ function addEch(link, o) {
   }
 
   var net = typeVal || "tcp";
+  if (net === "raw") { net = "tcp"; }   // newer name of the tcp transport
   var domain = sniVal || hostVal || (isIpLiteral(p.host) ? "" : p.host);   // what must stay as SNI / Host when the address changes
   if (addrs.length && !domain) { return { texts: [], state: "noname" }; }
 
@@ -1504,7 +1531,7 @@ function addEch(link, o) {
   }
   if (addrs.length) {
     if (!hasSni) { kept.push("sni=" + domain); hasSni = true; }
-    if (!hasHost && /^(ws|httpupgrade|xhttp|splithttp|h2|http)$/.test(net)) { kept.push("host=" + domain); }
+    if (!hasHost && (/^(ws|httpupgrade|xhttp|splithttp|h2|http)$/.test(net) || (net === "tcp" && headerVal === "http"))) { kept.push("host=" + domain); }
   }
   if (alpnAt !== -1) { kept[alpnAt] = "alpn=" + alpnFor(net); }
   else if (o.alpnAuto || (converted && !hasAlpn)) { kept.push("alpn=" + alpnFor(net)); }
@@ -1580,6 +1607,119 @@ function b64encodeUtf8(str) {
   return btoa(bin);
 }
 
+
+// ---- other protocols: recognised, checked lightly, and passed through byte for byte ----
+var PASS_SCHEMES = /^(vmess|ss|ssr|hysteria2|hy2|hysteria|hy|tuic|wireguard|wg|socks|socks4|socks5|anytls|juicity|mieru|snell|trojan-go|shadowtls|brook|naive\+https|naive\+quic)$/i;
+function schemeOf(link) {
+  var m = link.match(/^([a-z][a-z0-9+.\-]*):\/\//i);
+  return m ? m[1].toLowerCase() : "";
+}
+// host or host:port, where the port may also be a list or a range (hysteria2 allows 1000,2000-3000)
+function plainHostPort(hp) {
+  if (!hp) { return false; }
+  var m = hp.match(/^(\[[0-9a-fA-F:.]+\]|[^\s:\/\[\]@]+)(?::([0-9,\-]+))?$/);
+  return !!(m && m[1]);
+}
+// -> null when the link is not usable, otherwise { proto, name }; the link itself is never changed
+function checkPass(link) {
+  var proto = schemeOf(link), body = link.substring(proto.length + 3), name = "", h = body.indexOf("#"), q, at, dec, ob, j;
+  if (h !== -1) {
+    try { name = decodeURIComponent(body.substring(h + 1)); } catch (e) { name = body.substring(h + 1); }
+    body = body.substring(0, h);
+  }
+  q = body.indexOf("?");
+  if (q !== -1) { body = body.substring(0, q); }
+  body = body.replace(/\/.*$/, "");   // a path after the address (ss plugin links, naive)
+  if (!body) { return null; }
+  if (proto === "vmess" || proto === "ss" || proto === "ssr") {
+    at = body.lastIndexOf("@");
+    if (at > 0) { return plainHostPort(body.substring(at + 1)) ? { proto: proto, name: name } : null; }
+    dec = b64decodeStrict(body);
+    if (dec === null) { return null; }
+    if (proto === "vmess") {
+      try {
+        ob = JSON.parse(dec);
+        if (!ob || typeof ob !== "object" || !ob.add || !ob.port || !ob.id) { return null; }
+        return { proto: proto, name: name || String(ob.ps || "") };
+      } catch (e2) {}
+      return /@[^\s]+:\d+/.test(dec) ? { proto: proto, name: name } : null;   // the older "method:id@host:port" form
+    }
+    if (proto === "ssr") { return /^[^:\s]+:\d+:/.test(dec) ? { proto: proto, name: name } : null; }
+    return /@[^\s]+:\d+/.test(dec) ? { proto: proto, name: name } : null;
+  }
+  at = body.lastIndexOf("@");
+  return plainHostPort(at === -1 ? body : body.substring(at + 1)) ? { proto: proto, name: name } : null;
+}
+
+// ---- safe normalisation and duplicate detection ----
+// only keys whose canonical spelling is known are touched; anything else stays exactly as it was written
+var CANON_KEYS = { type: "type", security: "security", sni: "sni", host: "host", path: "path", alpn: "alpn", fp: "fp", flow: "flow", encryption: "encryption",
+  ech: "ech", fm: "fm", cs: "cs", pbk: "pbk", sid: "sid", spx: "spx", mode: "mode", extra: "extra", authority: "authority", seed: "seed", pqv: "pqv",
+  insecure: "insecure", servicename: "serviceName", allowinsecure: "allowInsecure", headertype: "headerType" };
+function normalizeQuery(link) {
+  var h = link.indexOf("#"), main = h === -1 ? link : link.substring(0, h), frag = h === -1 ? "" : link.substring(h);
+  var q = main.indexOf("?");
+  if (q === -1) { return link; }
+  var toks = main.substring(q + 1).split("&"), out = [], seenTok = Object.create(null), i, tok, k, eq, canon, fixed;
+  for (i = 0; i < toks.length; i++) {
+    tok = toks[i];
+    if (tok === "") { continue; }
+    k = keyOf(tok);
+    canon = CANON_KEYS[k];
+    fixed = tok;
+    if (canon && tok.split("=")[0] !== canon) {
+      eq = tok.indexOf("=");
+      fixed = canon + (eq === -1 ? "" : tok.substring(eq));
+    }
+    if (seenTok[fixed]) { continue; }   // the very same key and value twice
+    seenTok[fixed] = true;
+    out.push(fixed);
+  }
+  return main.substring(0, q) + (out.length ? "?" + out.join("&") : "") + frag;
+}
+var CI_VALUES = { type: 1, security: 1, fp: 1, encryption: 1, headertype: 1, mode: 1, flow: 1 };
+// two links with the same key do the same thing: parameter order, key case, %-encoding style and the host's letter case do not matter;
+// the name still counts, so two differently named copies are both kept
+function dedupKey(link) {
+  var h = link.indexOf("#"), main = h === -1 ? link : link.substring(0, h), frag = h === -1 ? "" : safeDec(link.substring(h));
+  var q = main.indexOf("?"), base = q === -1 ? main : main.substring(0, q), qs = q === -1 ? "" : main.substring(q + 1);
+  var m = base.match(/^([a-z][a-z0-9+.\-]*):\/\/(.*)$/i);
+  if (!m) { return link; }
+  var rest = m[2], at = rest.lastIndexOf("@"), user = "", hp = rest, i, tok, k, v, eq, toks = [], parts;
+  if (at === -1) { return link; }   // an opaque blob (Base64 vmess / ss): compared exactly, never case-folded
+  user = safeDec(rest.substring(0, at)); hp = rest.substring(at + 1);
+  var sl = hp.indexOf("/"), pathPart = "";
+  if (sl !== -1) { pathPart = hp.substring(sl); hp = hp.substring(0, sl); }
+  parts = qs.split("&");
+  for (i = 0; i < parts.length; i++) {
+    tok = parts[i];
+    if (!tok) { continue; }
+    k = keyOf(tok);
+    eq = tok.indexOf("=");
+    v = safeDec(eq === -1 ? "" : tok.substring(eq + 1));
+    if (CI_VALUES[k]) { v = v.toLowerCase(); }
+    toks.push(k + "=" + v);
+  }
+  toks.sort();
+  return m[1].toLowerCase() + "://" + user + "@" + hp.toLowerCase() + pathPart + "?" + toks.join("&") + frag;
+}
+
+// ---- name template ----
+// {name} {ip} {domain} {type} {port} {proto}; only used for vless and trojan links the tool itself produced
+function applyNameTemplate(link, tpl) {
+  var h = link.indexOf("#"), main = h === -1 ? link : link.substring(0, h), nm = h === -1 ? "" : safeDec(link.substring(h + 1));
+  var qAt = main.indexOf("?"), p = parseBase(qAt === -1 ? main : main.substring(0, qAt));
+  if (!p) { return link; }
+  var q = qAt === -1 ? Object.create(null) : qparse(main.substring(qAt + 1));
+  var ip = p.host.charAt(0) === "[" ? p.host.substring(1, p.host.length - 1) : p.host;
+  var dom = q.sni || q.host || (isIpLiteral(p.host) ? "" : p.host);
+  var vals = { name: nm, ip: ip, domain: dom, type: (q.type || "tcp").toLowerCase(), port: p.port, proto: p.scheme.toLowerCase() };
+  var res = tpl.replace(/\{(name|ip|domain|type|port|proto)\}/gi, function (m0, key) { return vals[key.toLowerCase()]; });
+  res = trim(res.replace(/\s{2,}/g, " "));
+  if (!res) { return link; }
+  return main + "#" + safeEnc(res);
+}
+
 // walks the text line by line; plain links are kept, Base64 blobs are decoded (up to MAX_B64_DEPTH layers).
 // returns [{ kind: link | unknown | badb64 | deep, text }]
 function extractItems(text, depth) {
@@ -1609,7 +1749,7 @@ function extractItems(text, depth) {
 }
 
 // --- UI ---
-var STATE_ORDER = ["notls", "noports", "noname", "noip", "othersec", "protocol", "invalid", "incomplete", "badb64", "deep", "unknown"];
+var STATE_ORDER = ["pass", "notls", "noports", "noname", "noip", "othersec", "protocol", "invalid", "incomplete", "badb64", "deep", "unknown", "fetchfail"];
 var STR = {
   en: {
     title: "ECH modifier",
@@ -1980,6 +2120,60 @@ var STR = {
   for (var l in add) { for (var k in add[l]) { STR[l][k] = add[l][k]; } }
 })();
 
+// ---- strings for the parser / subscription additions ----
+(function () {
+  var more = {
+    en: {
+      g_parse: "Parser and subscription",
+      passThrough: "Keep other configs unchanged",
+      passThroughD: "vmess, shadowsocks, hysteria2, tuic and other protocols, plus Reality and no-TLS configs that are not modified, stay in the result exactly as they came. Turn off to get only the configs that were changed.",
+      normQuery: "Tidy link parameters",
+      normQueryD: "Removes a parameter that is repeated with the very same value and fixes the spelling of well-known names (servicename becomes serviceName). Anything the tool does not know is never touched.",
+      lblNameTpl: "Config name template",
+      nameTplPh: "{name} | {ip}",
+      nameTplHint: "Leave empty to keep the names. Placeholders: {name} {ip} {domain} {type} {port} {proto}. Only the names of vless and trojan configs change; the others stay exactly as they are.",
+      fpKeep: "Keep each link's own fingerprint (chrome if it has none)",
+      sumKeep: "Keep others", sumTidy: "Tidy", sumTpl: "Name template", sumFpKeep: "own fp",
+      dlTxt: "Download TXT",
+      txtDone: "TXT file downloaded.",
+      corsErr: "The server is reachable, but the browser is not allowed to read its answer (CORS). Tap \"Open link in browser\", copy the text it shows, come back and tap Paste and run.",
+      netErr: "The server could not be reached at all: the network is down, the address does not resolve, or it is blocked. Check the connection or the link, or open it in your browser.",
+      mixedErr: "This page is on https, so the browser refuses to load an http link from it. Open the link in your browser and paste the text here.",
+      htmlResp: "The link answered with a web page, not a subscription. It may need a login, or the link is wrong or expired.",
+      tooLargeResp: "The answer is far too large to be a subscription, so it was not read.",
+      fetchAllFail: "None of the {n} links could be fetched. The report below says why for each one.",
+      fk: { timeout: "timed out", http: "HTTP error", cors: "blocked by CORS", network: "no connection", blocked: "blocked or no connection", mixed: "http on an https page", empty: "empty answer", html: "web page, not a subscription", toolarge: "answer too large" },
+      st: { pass: "other protocol, kept unchanged", fetchfail: "link could not be fetched" }
+    },
+    fa: {
+      g_parse: "پارسر و اشتراک",
+      passThrough: "بقیه‌ی کانفیگ‌ها بدون تغییر بمانند",
+      passThroughD: "vmess، shadowsocks، hysteria2، tuic و پروتکل‌های دیگر، به‌علاوه‌ی کانفیگ‌های Reality و بدون TLS که تغییری نمی‌کنند، دقیقاً همان‌طور که بودند در نتیجه می‌مانند. اگر خاموش باشد فقط کانفیگ‌های تغییرکرده در نتیجه می‌آیند.",
+      normQuery: "مرتب‌سازی پارامترهای لینک",
+      normQueryD: "پارامتری را که با همان مقدار تکرار شده باشد حذف می‌کند و املای نام‌های شناخته‌شده را درست می‌کند (servicename می‌شود serviceName). به هر چیزی که ابزار نمی‌شناسد دست نمی‌زند.",
+      lblNameTpl: "قالب نام کانفیگ",
+      nameTplPh: "{name} | {ip}",
+      nameTplHint: "برای نگه‌داشتن نام‌ها خالی بگذارید. جانشین‌ها: {name} {ip} {domain} {type} {port} {proto}. فقط نام کانفیگ‌های vless و trojan عوض می‌شود و بقیه همان‌طور که هستند می‌مانند.",
+      fpKeep: "اثر انگشتِ خودِ هر لینک حفظ شود (اگر نداشت chrome)",
+      sumKeep: "نگه‌داشتن بقیه", sumTidy: "مرتب‌سازی", sumTpl: "قالب نام", sumFpKeep: "fp خود لینک",
+      dlTxt: "دانلود TXT",
+      txtDone: "فایل TXT دانلود شد.",
+      corsErr: "سرور در دسترس است ولی مرورگر اجازه‌ی خواندن پاسخش را نمی‌دهد (CORS). روی «باز کردن لینک در مرورگر» بزنید، متنی را که نشان می‌دهد کپی کنید، برگردید و «چسباندن و اجرا» را بزنید.",
+      netErr: "اصلاً به سرور نرسیدیم: اینترنت قطع است، آدرس پیدا نمی‌شود یا مسدود شده. اتصال یا لینک را بررسی کنید، یا آن را در مرورگر باز کنید.",
+      mixedErr: "این صفحه روی https است و مرورگر اجازه نمی‌دهد از آن یک لینک http را بارگذاری کند. لینک را در مرورگر باز کنید و متن را اینجا بچسبانید.",
+      htmlResp: "لینک یک صفحه‌ی وب برگرداند، نه اشتراک. شاید ورود به حساب لازم باشد یا لینک اشتباه یا منقضی است.",
+      tooLargeResp: "پاسخ آن‌قدر بزرگ است که اشتراک نمی‌تواند باشد، پس خوانده نشد.",
+      fetchAllFail: "هیچ‌کدام از {n} لینک دریافت نشد. گزارش پایین دلیل هر کدام را می‌گوید.",
+      fk: { timeout: "زمان تمام شد", http: "خطای HTTP", cors: "مسدود با CORS", network: "اتصال نیست", blocked: "مسدود یا بدون اتصال", mixed: "http روی صفحه‌ی https", empty: "پاسخ خالی", html: "صفحه‌ی وب، نه اشتراک", toolarge: "پاسخ بسیار بزرگ" },
+      st: { pass: "پروتکل دیگر، بدون تغییر نگه داشته شد", fetchfail: "لینک دریافت نشد" }
+    }
+  };
+  for (var l in more) {
+    for (var k in more[l]) { if (k !== "st") { STR[l][k] = more[l][k]; } }
+    for (var sk in more[l].st) { STR[l].states[sk] = more[l].st[sk]; }
+  }
+})();
+
 var LANG = "en";
 var statusFn = null;
 var cardState = [];   // { text, qrOpen } per card, so a language switch can redraw labels
@@ -2061,6 +2255,7 @@ function saveSettings() {
       fmSel: $("fmSel").value, fmText: $("fmText").value, csSel: $("csSel").value, csText: $("csText").value,
       addrOn: $("addrOn").checked, addrFam: $("addrFam").value, addrText: $("addrText").value, alpnAuto: $("alpnAuto").checked,
       convert: $("convert").checked, ports: portList(), portsAll: $("portsAll").checked,
+      passThrough: $("passThrough").checked, normQuery: $("normQuery").checked, nameTpl: $("nameTpl").value,
       pack: $("packMode").checked, packType: $("packType").value, packList: packList(), profList: profList()
     }));
   } catch (e) {}
@@ -2146,6 +2341,9 @@ function loadSettings() {
   if (typeof s.fp === "string") { $("fp").value = s.fp; }
   if (typeof s.convert === "boolean") { $("convert").checked = s.convert; }
   if (typeof s.portsAll === "boolean") { $("portsAll").checked = s.portsAll; }
+  if (typeof s.passThrough === "boolean") { $("passThrough").checked = s.passThrough; }
+  if (typeof s.normQuery === "boolean") { $("normQuery").checked = s.normQuery; }
+  if (typeof s.nameTpl === "string") { $("nameTpl").value = s.nameTpl; }
   if (typeof s.pack === "boolean") { $("packMode").checked = s.pack; }
   if (s.ports && s.ports.length !== undefined) {
     var els = document.querySelectorAll("input[name=port]");
@@ -2416,7 +2614,7 @@ function renderReport() {
     nm.setAttribute("dir", "auto");
     nm.textContent = r.name;
     var st = document.createElement("span");
-    st.className = (r.state === "enhanced" || r.state === "converted") ? "repok" : "repwarn";
+    st.className = (r.state === "enhanced" || r.state === "converted" || r.state === "pass") ? "repok" : "repwarn";
     st.textContent = t("states")[r.state];
     row.appendChild(nm);
     row.appendChild(st);
@@ -2430,6 +2628,7 @@ function renderReport() {
   }
 }
 
+var pendingFetchRows = [];
 function processText(text) {
   saveSettings();
   var variants = [], badAddr = 0, otherAddr = 0, skipProf = [], b, v, pack = $("packMode").checked, ptype = $("packType").value;
@@ -2477,13 +2676,24 @@ function processText(text) {
   var items = extractItems(text, 0);
   for (var js = 0; js < jsonSkipped.length; js++) { items.push({ kind: "protocol", text: jsonSkipped[js] }); }
   var c = { total: 0, enh: 0, out: 0, dup: 0, badAddr: badAddr, otherAddr: otherAddr, skipProf: skipProf, enhanced: 0, converted: 0, notls: 0, noports: 0, noname: 0, noip: 0, echDropped: 0, othersec: 0,
-            protocol: 0, invalid: 0, incomplete: 0, unknown: 0, badb64: 0, deep: 0 };
+            protocol: 0, invalid: 0, incomplete: 0, unknown: 0, badb64: 0, deep: 0, pass: 0, fetchfail: 0 };
+  var keepOthers = $("passThrough").checked, doNorm = $("normQuery").checked, tpl = trim($("nameTpl").value);
   var out = [], seen = Object.create(null), rows = [], i, j;
   for (i = 0; i < items.length; i++) {
     var it = items[i];
     if (it.kind === "link") {
       c.total++;
-      var best = null, made = [], rr, k2;
+      var best = null, made = [], rr, k2, sch = schemeOf(it.text), chk = null, ownKept = false;
+      if (sch !== "vless" && sch !== "trojan" && PASS_SCHEMES.test(sch)) {
+        // vmess, shadowsocks, hysteria2, tuic and friends: recognised, never rewritten
+        chk = checkPass(it.text);
+        if (!chk) { c.invalid++; rows.push({ name: shorten(rowName(it.text)), state: "invalid" }); continue; }
+        if (!keepOthers) { c.protocol++; rows.push({ name: "[" + chk.proto + "] " + shorten(chk.name || rowName(it.text)), state: "protocol" }); continue; }
+        c.pass++;
+        rows.push({ name: "[" + chk.proto + "] " + shorten(chk.name || rowName(it.text)), state: "pass" });
+        if (seen[dedupKey(it.text)]) { c.dup++; } else { seen[dedupKey(it.text)] = true; out.push(it.text); }
+        continue;
+      }
       for (v = 0; v < variants.length; v++) {
         rr = addEch(it.text, variants[v].opts);
         c.echDropped += rr.echDropped || 0;
@@ -2494,15 +2704,26 @@ function processText(text) {
       }
       c[best.state]++;
       rows.push({ name: rowName(it.text), state: best.state });
+      if (!made.length && keepOthers && (best.state === "notls" || best.state === "othersec")) {
+        made.push(it.text);   // a valid config this tool cannot or should not change (Reality, no-TLS with conversion off): kept exactly as it came
+        ownKept = true;
+      }
       for (j = 0; j < made.length; j++) {
-        if (seen[made[j]]) { c.dup++; }
-        else { seen[made[j]] = true; out.push(made[j]); }   // first occurrence keeps its place
+        if (!ownKept) {
+          if (doNorm) { made[j] = normalizeQuery(made[j]); }
+          if (tpl) { made[j] = applyNameTemplate(made[j], tpl); }
+        }
+        var dk = dedupKey(made[j]);
+        if (seen[dk]) { c.dup++; }
+        else { seen[dk] = true; out.push(made[j]); }   // first occurrence keeps its place
       }
     } else {
       c[it.kind]++;
       rows.push({ name: shorten(it.text), state: it.kind });
     }
   }
+  for (i = 0; i < pendingFetchRows.length; i++) { c.fetchfail++; rows.push(pendingFetchRows[i]); }
+  pendingFetchRows = [];
   c.enh = c.enhanced + c.converted;
   c.out = out.length;
   lastReport = rows;
@@ -2551,6 +2772,7 @@ function xrayToLink(ob, remarks) {
 
   var ss = ob.streamSettings || {};
   var net = String(ss.network || "tcp").toLowerCase();
+  if (net === "raw") { net = "tcp"; ss = Object.assign({}, ss, { tcpSettings: ss.tcpSettings || ss.rawSettings }); }   // raw is the new name of tcp
   var sec = String(ss.security || "none").toLowerCase();
   var q = [];
   if (proto === "vless") { qpair(q, "encryption", enc); qpair(q, "flow", flow); }
@@ -2603,6 +2825,7 @@ function xrayToLink(ob, remarks) {
     qpair(q, "pbk", x.publicKey || x.password);
     qpair(q, "sid", x.shortId);
     qpair(q, "spx", x.spiderX);
+    qpair(q, "pqv", x.mldsa65Verify);
   }
 
   var h = String(host);
@@ -2703,6 +2926,7 @@ function linkToXray(link) {
   var sec = (q.security || (scheme === "trojan" ? "tls" : "none")).toLowerCase();
   var net = (q.type || "tcp").toLowerCase();
   if (net === "splithttp") { net = "xhttp"; }
+  if (net === "raw") { net = "tcp"; }
   var hostHdr = q.host || "", path = q.path || "";
   if (/^%2f/i.test(path)) { path = safeDec(path); }          // path that was encoded twice
   var ss = { network: net, security: sec };
@@ -2755,6 +2979,7 @@ function linkToXray(link) {
     if (q.pbk) { reality.publicKey = q.pbk; }
     if (q.sid) { reality.shortId = q.sid; }
     if (q.spx) { reality.spiderX = q.spx; }
+    if (q.pqv) { reality.mldsa65Verify = q.pqv; }
     ss.realitySettings = reality;
   }
   if (q.fm) { try { ss.finalmask = JSON.parse(q.fm); } catch (e3) {} }
@@ -2882,30 +3107,110 @@ function process(text) {
 
 var lastBlockedUrl = "";
 function hideBlocked() { $("blockedBox").style.display = "none"; }
-function failFetch(url) {
-  lastBlockedUrl = url;
-  $("blockedBox").style.display = "";
-  say("blockedOpen");
+
+// ---- subscription links: fetch with timeout, one retry, and a reason when it fails ----
+var FETCH_TIMEOUT = 15000, FETCH_RETRY_DELAY = 700, FETCH_MAX_CHARS = 8000000, MAX_SUB_LINKS = 10, fetchBusy = false;
+function isHttpLine(l) { return /^https?:\/\/\S+$/i.test(l); }
+function hostOf(url) {
+  try { return new URL(url).host; } catch (e) { return shorten(url.replace(/^https?:\/\//i, "").split(/[\/?#]/)[0]); }   // never the path: it often holds the token
 }
 
-function fetchSub(url) {
+// one request. Always resolves: { text } | { status } (HTTP error) | { err: "timeout" | "network" }
+function rawFetch(url, mode, ms) {
+  return new Promise(function (resolve) {
+    var done = false, ctl = null, timer;
+    try { if (typeof AbortController !== "undefined") { ctl = new AbortController(); } } catch (e) {}
+    function fin(r) { if (done) { return; } done = true; clearTimeout(timer); resolve(r); }
+    timer = setTimeout(function () { if (ctl) { try { ctl.abort(); } catch (e2) {} } fin({ err: "timeout" }); }, ms);
+    var opt = { method: "GET", mode: mode, cache: "no-store", credentials: "omit", redirect: "follow" };
+    if (ctl) { opt.signal = ctl.signal; }
+    try {
+      fetch(url, opt).then(function (res) {
+        if (mode === "no-cors") { fin({ opaque: true }); return; }
+        if (!res.ok) { fin({ status: res.status }); return; }
+        res.text().then(function (txt) { fin({ text: txt }); }, function () { fin({ err: "network" }); });
+      }, function (e3) { fin({ err: (e3 && e3.name === "AbortError") ? "timeout" : "network" }); });
+    } catch (e4) { fin({ err: "network" }); }
+  });
+}
+function xhrFetch(url, ms) {   // very old browsers without fetch
+  return new Promise(function (resolve) {
+    var x = new XMLHttpRequest();
+    try { x.open("GET", url, true); } catch (e) { resolve({ err: "network" }); return; }
+    x.timeout = ms;
+    x.onload = function () {
+      if (x.status === 0) { resolve({ err: "network" }); }
+      else if (x.status < 200 || x.status >= 300) { resolve({ status: x.status }); }
+      else { resolve({ text: x.responseText }); }
+    };
+    x.onerror = function () { resolve({ err: "network" }); };
+    x.ontimeout = function () { resolve({ err: "timeout" }); };
+    try { x.send(); } catch (e2) { resolve({ err: "network" }); }
+  });
+}
+function checkBody(txt) {
+  if (!txt || !trim(txt)) { return { ok: false, kind: "empty" }; }
+  if (txt.length > FETCH_MAX_CHARS) { return { ok: false, kind: "toolarge" }; }
+  if (/^\s*<(!doctype|html|head|body|\?xml)/i.test(txt)) { return { ok: false, kind: "html" }; }   // a login or error page, not a subscription
+  return { ok: true, text: txt };
+}
+// -> { ok: true, text } | { ok: false, kind: timeout | http | cors | network | blocked | mixed | empty | html | toolarge, status }
+function fetchOnce(url) {
+  var hasFetch = typeof fetch === "function";
+  return (hasFetch ? rawFetch(url, "cors", FETCH_TIMEOUT) : xhrFetch(url, FETCH_TIMEOUT)).then(function (r) {
+    if (r.text !== undefined) { return checkBody(r.text); }
+    if (r.status) { return { ok: false, kind: "http", status: r.status }; }
+    if (r.err === "timeout") { return { ok: false, kind: "timeout" }; }
+    if (location.protocol === "https:" && /^http:/i.test(url)) { return { ok: false, kind: "mixed" }; }   // blocked before it leaves the browser
+    if (!hasFetch) { return { ok: false, kind: "blocked" }; }   // XHR cannot tell CORS from a dead network
+    // A no-cors request succeeds whenever the server can be reached, so it tells the two failures apart
+    return rawFetch(url, "no-cors", 8000).then(function (pr) { return { ok: false, kind: pr.opaque ? "cors" : "network" }; });
+  });
+}
+function fetchSubUrl(url) {
+  return fetchOnce(url).then(function (r) {
+    var again = !r.ok && (r.kind === "timeout" || r.kind === "network" || (r.kind === "http" && (r.status >= 500 || r.status === 429)));
+    if (!again) { return r; }
+    return new Promise(function (res) { setTimeout(res, FETCH_RETRY_DELAY); }).then(function () { return fetchOnce(url); });
+  }).catch(function () { return { ok: false, kind: "network" }; });
+}
+function fetchKindLabel(r) { return t("fk")[r.kind] + (r.kind === "http" ? " " + r.status : ""); }
+function fetchKindStatus(r) {
+  if (r.kind === "http") { return function () { return t("serverErr").replace("{n}", r.status); }; }
+  var key = { timeout: "timeout", cors: "corsErr", network: "netErr", blocked: "blocked", mixed: "mixedErr", empty: "emptyResp", html: "htmlResp", toolarge: "tooLargeResp" }[r.kind] || "blocked";
+  return function () { return t(key); };
+}
+
+function runFetch(urls, others) {
+  if (fetchBusy) { return; }
+  fetchBusy = true;
+  $("run").disabled = true;
   say("fetching");
-  var x = new XMLHttpRequest();
-  try { x.open("GET", url, true); } catch (e) { failFetch(url); return; }
-  x.timeout = 20000;
-  x.onload = function () {
-    if (x.status < 200 || x.status >= 300) {
-      if (x.status === 0) { failFetch(url); return; }
-      setStatus(function () { return t("serverErr").replace("{n}", x.status); });
+  function release() { fetchBusy = false; $("run").disabled = false; }
+  Promise.all(urls.map(fetchSubUrl)).then(function (results) {
+    release();
+    var texts = [], fails = [], i;
+    for (i = 0; i < results.length; i++) {
+      if (results[i].ok) { texts.push(results[i].text); } else { fails.push({ url: urls[i], r: results[i] }); }
+    }
+    if (!texts.length && !others.length) {
+      // nothing could be read at all: say why, and offer the open-in-browser fallback when the browser is the one blocking
+      var first = fails[0], blockedKind = /^(cors|network|blocked|mixed)$/.test(first.r.kind);
+      lastBlockedUrl = first.url;
+      if (blockedKind) { $("blockedBox").style.display = ""; }
+      if (fails.length === 1) { setStatus(fetchKindStatus(first.r)); }
+      else {
+        var n = fails.length;
+        setStatus(function () { return t("fetchAllFail").replace("{n}", n); });
+        lastReport = fails.map(function (f) { return { name: hostOf(f.url) + " (" + fetchKindLabel(f.r) + ")", state: "fetchfail" }; });
+        renderReport();
+      }
+      setTimeout(afterRun, 0);
       return;
     }
-    var body = x.responseText;
-    if (!body || !trim(body)) { say("emptyResp"); return; }
-    process(body);
-  };
-  x.onerror = function () { failFetch(url); };
-  x.ontimeout = function () { say("timeout"); };
-  try { x.send(); } catch (e2) { failFetch(url); }
+    pendingFetchRows = fails.map(function (f) { return { name: hostOf(f.url) + " (" + fetchKindLabel(f.r) + ")", state: "fetchfail" }; });
+    process(texts.concat(others).join("\n"));
+  }, function () { release(); say("unexpected"); });
 }
 
 $("openSub").onclick = function () { if (lastBlockedUrl) { window.open(lastBlockedUrl, "_blank", "noopener"); } };
@@ -2914,8 +3219,17 @@ $("run").onclick = function () {
   hideBlocked();
   var text = trim($("input").value);
   if (!text) { say("pasteFirst"); return; }
-  if (/^https?:\/\/\S+$/i.test(text)) { fetchSub(text); }
-  else { process(text); }
+  if (!/^[\[{]/.test(text)) {
+    // subscription links can sit on their own lines next to plain configs; every link is fetched on its own and one failure never stops the rest
+    var lines = text.split(/\r?\n/), urls = [], others = [], seenU = Object.create(null), i, l;
+    for (i = 0; i < lines.length; i++) {
+      l = trim(lines[i]);
+      if (!l) { continue; }
+      if (isHttpLine(l)) { if (!seenU[l]) { seenU[l] = true; urls.push(l); } } else { others.push(l); }
+    }
+    if (urls.length) { runFetch(urls.slice(0, MAX_SUB_LINKS), others); return; }
+  }
+  process(text);
 };
 
 var awaitPaste = false;
@@ -2973,6 +3287,25 @@ $("fileIn").onchange = function () {
   rd.readAsText(f);
 };
 
+// drop a .txt or .json file on the input box
+(function () {
+  var box = $("input");
+  function hasFiles(e) { return e.dataTransfer && e.dataTransfer.types && Array.prototype.indexOf.call(e.dataTransfer.types, "Files") !== -1; }
+  box.addEventListener("dragover", function (e) { if (hasFiles(e)) { e.preventDefault(); } });
+  box.addEventListener("drop", function (e) {
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) { return; }
+    e.preventDefault();
+    function got(txt) { awaitPaste = false; box.value = String(txt || "").replace(/^\uFEFF/, ""); $("run").onclick(); }
+    function fail() { say("fileErr"); }
+    if (f.text) { f.text().then(got, fail); return; }
+    var rd = new FileReader();
+    rd.onload = function () { got(rd.result); };
+    rd.onerror = fail;
+    rd.readAsText(f);
+  });
+})();
+
 $("clear").onclick = function () {
   awaitPaste = false;
   $("input").value = "";
@@ -2993,6 +3326,13 @@ $("copy64").onclick = function () {
   var v = $("output").value;
   if (!v) { say("nothingCopy"); return; }
   copyText(b64encodeUtf8(v), function () { say("copied64"); });
+};
+
+$("dlTxt").onclick = function () {
+  var v = $("output").value;
+  if (!v) { say("nothingCopy"); return; }
+  downloadBlob("ech-modifier-configs.txt", new Blob([v + "\n"], { type: "text/plain;charset=utf-8" }));
+  say("txtDone");
 };
 
 $("dlJson").onclick = function () {
@@ -3076,7 +3416,7 @@ function ffSummary() {
 function refreshSummary() {
   if (!$("vEch")) { return; }
   var pack = $("packMode").checked, pt = $("packType").value, byProf = pack && pt === "profile", byEch = pack && pt === "ech";
-  var echOn = byEch || $("useEch").checked, fp = $("fp").value, ports = portList().join(", ") || "-";
+  var echOn = byEch || $("useEch").checked, fp = $("fp").value === "keep" ? t("sumFpKeep") : $("fp").value, ports = portList().join(", ") || "-";
   var fam = $("addrFam").value, ipOn = $("addrOn").checked || byProf, ipText = "", n = 0, per = t("sumPerPreset");
   if (ipOn) {
     n = parseAddrList($("addrText").value, byProf ? "any" : fam).list.length;
@@ -3091,6 +3431,11 @@ function refreshSummary() {
   $("vIp").textContent = ipOn ? ipText : t("sumOff");
   $("vPorts").textContent = ports;
   $("vPack").textContent = packTxt;
+  var pb = [];
+  if ($("passThrough").checked) { pb.push(t("sumKeep")); }
+  if ($("normQuery").checked) { pb.push(t("sumTidy")); }
+  if (trim($("nameTpl").value)) { pb.push(t("sumTpl")); }
+  $("vParse").textContent = pb.length ? pb.join(" \u00b7 ") : t("sumOff");
 
   var sel = $("profile"), name, bits = [];
   if (pack) {
@@ -3352,7 +3697,7 @@ $("scanPhotoIn").onchange = function () {
 buildPackChips();   // before the change handlers below, so the new checkboxes get them too
 
 function markCustom() { if ($("profile").value !== "custom") { $("profile").value = "custom"; } }
-var plain = document.querySelectorAll("#convert, #portsAll, input[name=port], input[name=packEch], input[name=packProf]");
+var plain = document.querySelectorAll("#convert, #portsAll, #passThrough, #normQuery, input[name=port], input[name=packEch], input[name=packProf]");
 for (var k = 0; k < plain.length; k++) { plain[k].onchange = saveSettings; }
 var manual = ["useEch", "ech", "fp", "fmSel", "fmText", "csSel", "csText", "addrOn", "addrFam", "alpnAuto"];
 manual.forEach(function (id) {
@@ -3372,6 +3717,7 @@ $("ffMode").addEventListener("change", function () {
   }
   markCustom(); updateUi(); saveSettings();
 });
+$("nameTpl").addEventListener("change", saveSettings);
 $("addrText").addEventListener("change", saveSettings);   // the list is shared by every preset
 $("profile").onchange = function () {
   if (this.value !== "custom") { applyProfile(this.value); }
