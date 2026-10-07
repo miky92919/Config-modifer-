@@ -29,12 +29,12 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #000000; --surface: #0a0a0a; --field: #050505;
-  --ink: #e4eeeb; --muted: #9db0aa;
-  --line: #24383a; --line-2: #4b6667; --track: #4b6667;
-  --accent: #3fae96; --accent-fg: #6fd0b9; --on-accent: #04201a; --accent-soft: #173633;
+  --bg: #121212; --surface: #1c1c1e; --field: #161618;
+  --ink: #ececec; --muted: #a3a3a8;
+  --line: #2e2e31; --line-2: #55555a; --track: #5e5e63;
+  --accent: #3fae96; --accent-fg: #6fd0b9; --on-accent: #04201a; --accent-soft: #23302d;
   --warn: #e0a24a; --warn-soft: #33291a;
-  --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239db0aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --chev: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3a3a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
 * { box-sizing: border-box; }
@@ -370,9 +370,32 @@ textarea.field { direction: ltr; text-align: left; font-family: var(--mono); fon
             <option value="cloudflare-ech.com+udp://8.8.8.8">cloudflare-ech.com+udp://8.8.8.8</option>
             <option value="cloudflare-ech.com+https://1.1.1.1/dns-query">cloudflare-ech.com+https://1.1.1.1/dns-query</option>
             <option value="cloudflare-ech.com+https://8.8.8.8/dns-query">cloudflare-ech.com+https://8.8.8.8/dns-query</option>
+            <option value="cloudflarestaging.com+udp://1.1.1.1">cloudflarestaging.com+udp://1.1.1.1</option>
+            <option value="geedo.com+udp://1.1.1.1">geedo.com+udp://1.1.1.1</option>
+            <option value="trustedstack.com+udp://1.1.1.1">trustedstack.com+udp://1.1.1.1</option>
+            <option value="ifconfig.io+udp://1.1.1.1">ifconfig.io+udp://1.1.1.1</option>
+            <option value="ay.delivery+udp://1.1.1.1">ay.delivery+udp://1.1.1.1</option>
+            <option value="mygaru.com+udp://1.1.1.1">mygaru.com+udp://1.1.1.1</option>
+            <option value="mgaru.dev+udp://1.1.1.1">mgaru.dev+udp://1.1.1.1</option>
+            <option value="adtarget.com.tr+udp://1.1.1.1">adtarget.com.tr+udp://1.1.1.1</option>
+            <option value="prestiti.it+udp://1.1.1.1">prestiti.it+udp://1.1.1.1</option>
+            <option value="cdnfonts.com+udp://1.1.1.1">cdnfonts.com+udp://1.1.1.1</option>
+            <option value="flagcdn.com+udp://1.1.1.1">flagcdn.com+udp://1.1.1.1</option>
+            <option value="ecanet.ir+udp://1.1.1.1">ecanet.ir+udp://1.1.1.1</option>
+            <option value="fxapex.ir+udp://1.1.1.1">fxapex.ir+udp://1.1.1.1</option>
+            <option value="aef.ir+udp://1.1.1.1">aef.ir+udp://1.1.1.1</option>
+            <option value="amarfa.ir+udp://1.1.1.1">amarfa.ir+udp://1.1.1.1</option>
+            <option value="arti.ir+udp://1.1.1.1">arti.ir+udp://1.1.1.1</option>
+            <option value="voorivex.ir+udp://1.1.1.1">voorivex.ir+udp://1.1.1.1</option>
+            <option value="potok.ir+udp://1.1.1.1">potok.ir+udp://1.1.1.1</option>
+            <option value="obeidarash.ir+udp://1.1.1.1">obeidarash.ir+udp://1.1.1.1</option>
+            <option value="raz.ir+udp://1.1.1.1">raz.ir+udp://1.1.1.1</option>
+            <option value="11gig.ir+udp://1.1.1.1">11gig.ir+udp://1.1.1.1</option>
+            <option value="react.ir+udp://1.1.1.1">react.ir+udp://1.1.1.1</option>
+            <option value="webers.ir+udp://1.1.1.1">webers.ir+udp://1.1.1.1</option>
             <option value="__custom__" data-i="echCustom"></option>
           </select>
-          <input type="text" id="ech" class="field mono" value="cloudflare-ech.com+udp://1.1.1.1" spellcheck="false" aria-label="ECH" data-ph="echPlaceholder" style="margin-top:8px;display:none">
+          <textarea id="ech" class="field mono" spellcheck="false" aria-label="ECH" data-ph="echPlaceholder" style="margin-top:8px;height:96px;display:none">cloudflare-ech.com+udp://1.1.1.1</textarea>
         </div>
         <label for="fp" class="fl" data-i="lblFp"></label>
         <select id="fp" class="field mono">
@@ -1758,7 +1781,7 @@ var STR = {
     sub: "Paste a subscription link, the subscription text, plain configs, or Xray JSON.",
     lblEch: "ECH value",
     echCustom: "Custom value",
-    echPlaceholder: "Type your ECH value",
+    echPlaceholder: "One ECH value per line. With several lines, every config gets one copy per line.",
     lblFp: "Fingerprint",
     convert: "Turn non-TLS configs (security=none) into TLS. ECH only works over TLS, so without this those configs are left alone.",
     lblFm: "Final mask (JSON)",
@@ -1880,7 +1903,7 @@ var STR = {
     sub: "لینک اشتراک، متن اشتراک، خود کانفیگ‌ها یا JSON مربوط به Xray را وارد کنید.",
     lblEch: "مقدار ECH",
     echCustom: "مقدار دلخواه",
-    echPlaceholder: "مقدار ECH خودتان را بنویسید",
+    echPlaceholder: "هر خط یک مقدار ECH. با چند خط، از هر کانفیگ به‌ازای هر خط یک نسخه ساخته می‌شود.",
     lblFp: "اثر انگشت (Fingerprint)",
     convert: "کانفیگ‌های بدون TLS (security=none) را به TLS تبدیل کن. ECH فقط روی TLS کار می‌کند و بدون این گزینه، آن کانفیگ‌ها دست‌نخورده می‌مانند.",
     lblFm: "Final mask (به شکل JSON)",
@@ -2059,7 +2082,7 @@ var STR = {
       scanPhotoDone: function (ok, bad) { return ok + " added" + (bad ? ", " + bad + " without a readable QR code" : "") + "."; }
     },
     fa: {
-      sub: "به کانفیگ‌های vless و ECH، trojan و آی‌پی سالم و پورت TLS اضافه کنید.",
+      sub: "به کانفیگ‌های vless و trojan، ECH و آی‌پی سالم و پورت TLS اضافه کنید.",
       inputPh: "لینک اشتراک، متن اشتراک، خود کانفیگ‌ها یا JSON مربوط به Xray را اینجا بچسبانید.",
       tabMain: "تبدیل",
       tabSet: "تنظیمات",
@@ -2187,7 +2210,8 @@ function say(key) { setStatus(function () { return t(key); }); }
 
 // ---- remembered settings ----
 var ECH_PRESETS = ["cloudflare-ech.com+udp://1.1.1.1", "crypto.cloudflare.com+udp://1.1.1.1", "cloudflare-ech.com+udp://1.0.0.1",
-  "cloudflare-ech.com+udp://8.8.8.8", "cloudflare-ech.com+https://1.1.1.1/dns-query", "cloudflare-ech.com+https://8.8.8.8/dns-query"];
+  "cloudflare-ech.com+udp://8.8.8.8", "cloudflare-ech.com+https://1.1.1.1/dns-query", "cloudflare-ech.com+https://8.8.8.8/dns-query",
+  "cloudflarestaging.com+udp://1.1.1.1", "geedo.com+udp://1.1.1.1", "trustedstack.com+udp://1.1.1.1", "ifconfig.io+udp://1.1.1.1", "ay.delivery+udp://1.1.1.1", "mygaru.com+udp://1.1.1.1", "mgaru.dev+udp://1.1.1.1", "adtarget.com.tr+udp://1.1.1.1", "prestiti.it+udp://1.1.1.1", "cdnfonts.com+udp://1.1.1.1", "flagcdn.com+udp://1.1.1.1", "ecanet.ir+udp://1.1.1.1", "fxapex.ir+udp://1.1.1.1", "aef.ir+udp://1.1.1.1", "amarfa.ir+udp://1.1.1.1", "arti.ir+udp://1.1.1.1", "voorivex.ir+udp://1.1.1.1", "potok.ir+udp://1.1.1.1", "obeidarash.ir+udp://1.1.1.1", "raz.ir+udp://1.1.1.1", "11gig.ir+udp://1.1.1.1", "react.ir+udp://1.1.1.1", "webers.ir+udp://1.1.1.1"];
 var PACK_DEFAULT = [0, 4, 5];   // plain 1.1.1.1 plus the two DoH servers
 
 // values given for the firewall recipes
@@ -2400,7 +2424,7 @@ function readSettings() {
            cs: $("csSel").value, csText: $("csText").value, addrOn: $("addrOn").checked, addrFam: $("addrFam").value, addrText: $("addrText").value, alpnAuto: $("alpnAuto").checked };
 }
 function profileSettings(p) {
-  return { useEch: p.useEch, ech: p.ech || trim($("ech").value), fp: p.fp, fm: p.fm, fmText: $("fmText").value,
+  return { useEch: p.useEch, ech: p.ech || trim($("ech").value.split(/\r?\n/)[0]), fp: p.fp, fm: p.fm, fmText: $("fmText").value,
            cs: p.cs, csText: $("csText").value, addrOn: p.addrOn, addrFam: p.fam || "any", addrText: $("addrText").value, alpnAuto: p.alpnAuto };
 }
 // settings -> options for addEch, or { err: key }
@@ -2432,7 +2456,7 @@ function updateThemeBtn() {
   btn.title = lbl;
   btn.innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-' + (dark ? "sun" : "moon") + '"/></svg>';
   var m = document.querySelector("meta[name=theme-color]");
-  if (m) { m.setAttribute("content", dark ? "#0d1514" : "#eef2f0"); }
+  if (m) { m.setAttribute("content", dark ? "#121212" : "#eef2f0"); }
 }
 function setTheme(th) {
   document.documentElement.setAttribute("data-theme", th);
@@ -2659,11 +2683,23 @@ function processText(text) {
       variants.push({ opts: b.opts, tag: echLabel(evs[v]) });
     }
   } else {
-    b = buildOpts(readSettings());
-    if (b.err) { say(b.err); return; }
-    badAddr = b.badAddr;
-    otherAddr = b.otherAddr;
-    variants.push({ opts: b.opts, tag: "" });
+    var st1 = readSettings(), elines = [], eseen = Object.create(null), el, ex = st1.ech.split(/\r?\n/);
+    for (el = 0; el < ex.length; el++) { var ev = trim(ex[el]); if (ev && !eseen[ev]) { eseen[ev] = true; elines.push(ev); } }
+    if (st1.useEch && elines.length > 1) {
+      for (el = 0; el < elines.length; el++) {
+        b = buildOpts(Object.assign({}, st1, { ech: elines[el] }));
+        if (b.err) { say(b.err); return; }
+        badAddr = b.badAddr; otherAddr = b.otherAddr;
+        variants.push({ opts: b.opts, tag: echLabel(elines[el]) });
+      }
+    } else {
+      st1.ech = elines[0] || "";
+      b = buildOpts(st1);
+      if (b.err) { say(b.err); return; }
+      badAddr = b.badAddr;
+      otherAddr = b.otherAddr;
+      variants.push({ opts: b.opts, tag: "" });
+    }
   }
 
   var jl = jsonToLinks(text), jsonSkipped = [];
